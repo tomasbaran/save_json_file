@@ -28,8 +28,11 @@ class _MyAppState extends State<MyApp> {
   File _filePath;
 
   // First initialization of _json (if there is no json in the file)
-  Map<String, dynamic> _json = {};
-  String _jsonString;
+  Map<dynamic, dynamic> _json = {};
+  String _jsonListString;
+
+  // Initialization of List<_jsons>
+  List<dynamic> _jsonList = [];
 
   Future<String> get _localPath async {
     final directory = await getApplicationDocumentsDirectory();
@@ -41,24 +44,34 @@ class _MyAppState extends State<MyApp> {
     return File('$path/$kFileName');
   }
 
-  void _writeJson(String key, dynamic value) async {
+  void _writeJsonRecord(Map<dynamic, dynamic> _jsonInput) {
+    // 0. Get the _json
+    print('0.(_writeJsonRecord) _json: $_jsonInput');
+
+    // 1. Add new json to the List<_json>
+    _jsonList.add(_jsonInput);
+    print('1.(_writeJsonRecord) _jsonList: $_jsonList');
+
+    // 2. Convert _jsonList->_jsonListString
+    _jsonListString = jsonEncode(_jsonList);
+    print('2a.(_writeJsonRecord) _jsonListString: $_jsonListString \n \n -');
+
+    // 3. Write _jsonListString into the file
+    _filePath.writeAsString(_jsonListString);
+  }
+
+  void _writeJsonPair(String key, dynamic value) {
     // Initialize the local _filePath
     //final _filePath = await _localFile;
 
-    //1. Create _newJson<Map> from input<TextField>
-    Map<String, dynamic> _newJson = {key: value};
-    print('1.(_writeJson) _newJson: $_newJson');
+    //1. Create _newJsonPair<Map> from input<TextField>
+    Map<String, dynamic> _newJsonPair = {key: value};
+    print('1.(_writeJson) _newJsonPair: $_newJsonPair');
 
-    //2. Update _json by adding _newJson<Map> -> _json<Map>
-    _json.addAll(_newJson);
-    print('2.(_writeJson) _json(updated): $_json');
-
-    //3. Convert _json ->_jsonString
-    _jsonString = jsonEncode(_json);
-    print('3.(_writeJson) _jsonString: $_jsonString\n - \n');
-
-    //4. Write _jsonString to the _filePath
-    _filePath.writeAsString(_jsonString);
+    //2. Update _json by adding _newJsonPair<Map> -> _json<Map>
+    print('2a.(_writeJson) _json(before being updated): $_json');
+    _json.addAll(_newJsonPair);
+    print('2b.(_writeJson) _json(updated): $_json \n\n -');
   }
 
   void _readJson() async {
@@ -72,13 +85,13 @@ class _MyAppState extends State<MyApp> {
     //1. If the _file exists->read it: update initialized _json by what's in the _file
     if (_fileExists) {
       try {
-        //1. Read _jsonString<String> from the _file.
-        _jsonString = await _filePath.readAsString();
-        print('1.(_readJson) _jsonString: $_jsonString');
+        //1. Read _jsonListString<String> from the _file.
+        _jsonListString = await _filePath.readAsString();
+        print('1.(_readJson) _jsonListString: $_jsonListString');
 
-        //2. Update initialized _json by converting _jsonString<String>->_json<Map>
-        _json = jsonDecode(_jsonString);
-        print('2.(_readJson) _json: $_json \n - \n');
+        //2. Update initialized _jsonList by converting _jsonListString<String>->_jsonList<Map>
+        _jsonList = jsonDecode(_jsonListString);
+        print('2.(_readJson) _jsonList: $_jsonList');
       } catch (e) {
         // Print exception errors
         print('Tried reading _file error: $e');
@@ -93,7 +106,7 @@ class _MyAppState extends State<MyApp> {
     // Instantiate _controllerKey and _controllerValue
     _controllerKey = TextEditingController();
     _controllerValue = TextEditingController();
-    print('0. Initialized _json: $_json');
+    print('0. Initialized _jsonList: $_jsonList');
     _readJson();
   }
 
@@ -112,22 +125,28 @@ class _MyAppState extends State<MyApp> {
           title: Text('Create JSON File'),
         ),
         body: SafeArea(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
+          child: ListView(
+            //mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: <Widget>[
               Text(
-                'JSON: ',
+                'JSON:',
+                textAlign: TextAlign.center,
               ),
               Padding(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 30.0, vertical: 10),
-                child: Text(_json.toString()),
+                child: Text(
+                  _json.toString(),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Theme.of(context).primaryColor),
+                ),
               ),
               SizedBox(
                 height: 40,
               ),
               Text(
                 'Add to JSON file',
+                textAlign: TextAlign.center,
                 style: Theme.of(context)
                     .textTheme
                     .headline4
@@ -145,13 +164,10 @@ class _MyAppState extends State<MyApp> {
                 height: 15,
               ),
               RaisedButton(
-                onPressed: () async {
+                onPressed: () {
                   print(
-                      '0. Input key: ${_controllerKey.text}; Input value: ${_controllerValue.text}\n-\n');
-                  _writeJson(_controllerKey.text, _controllerValue.text);
-                  final file = await _localFile;
-                  _fileExists = await file.exists();
-                  //_fileName = file;
+                      '0. Input key: ${_controllerKey.text}; Input value: ${_controllerValue.text}');
+                  _writeJsonPair(_controllerKey.text, _controllerValue.text);
 
                   setState(() {});
                   _controllerKey.clear();
@@ -169,24 +185,38 @@ class _MyAppState extends State<MyApp> {
                 ),
               ),
               SizedBox(
+                height: 30,
+              ),
+              RaisedButton(
+                onPressed: () {
+                  _writeJsonRecord(_json);
+                  // Clear _json for the new _json
+                  _json = {};
+                  setState(() {});
+                },
+                elevation: 25.0,
+                padding: EdgeInsets.symmetric(horizontal: 50, vertical: 25),
+                //shape: ShapeBorder(),
+                color: Colors.red,
+                child: Text(
+                  'Write Blue Json Record to file',
+                  style: TextStyle(
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              SizedBox(
                 height: 40,
               ),
-              Expanded(
-                child: Align(
-                  alignment: Alignment.bottomCenter,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 14.0),
-                    child: Text(
-                      _fileExists
-                          ? _filePath.toString()
-                          : 'File doesn\'t exist.',
-                      style: TextStyle(
-                        fontSize: 14.0,
-                        color: Colors.black38,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14.0),
+                child: Text(
+                  _jsonList.toString(),
+                  style: TextStyle(
+                    fontSize: 14.0,
+                    color: Colors.black38,
                   ),
+                  textAlign: TextAlign.center,
                 ),
               ),
             ],
